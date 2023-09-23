@@ -23,6 +23,10 @@ const proveedorSchema = mongoose.Schema(
       trim: true,
       require: true,
     },
+    telefono: {
+      type: String,
+      trim: true,
+    },
     email: {
       type: String,
       trim: true,

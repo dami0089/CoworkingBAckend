@@ -20,12 +20,14 @@ router
   .route("/")
   .get(checkAuth, obtenerProveedores)
   .post(checkAuth, nuevoProveedor);
-router.route("/:id").put(checkAuth, editarProveedor);
+
+router.post("/editar-proveedor/:id", checkAuth, editarProveedor);
 
 router.get("/obtener/:id", checkAuth, obtenerProveedor);
 router.get("/obtener-facturas", checkAuth, obtenerFacturasaPagar);
 
 router.post("/cargar-factura", checkAuth, cargarFactura);
+
 router.post("/cambiar-estado/:id", checkAuth, pagarFactura);
 
 router.post("/comprobar", checkAuth, comprobarProveedor);

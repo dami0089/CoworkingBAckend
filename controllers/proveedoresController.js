@@ -126,9 +126,7 @@ const obtenerProveedor = async (req, res) => {
   //obtener las facturas del cliente
   // const facturas = await Factura.find().where("cliente").equals(cliente._id);
 
-  res.json({
-    proveedor,
-  });
+  res.json(proveedor);
 };
 
 const editarProveedor = async (req, res) => {
@@ -144,6 +142,9 @@ const editarProveedor = async (req, res) => {
   proveedor.tipo = req.body.tipo || proveedor.tipo;
   proveedor.nombre = req.body.nombre || proveedor.nombre;
   proveedor.email = req.body.email || proveedor.email;
+  proveedor.cuit = req.body.cuit || proveedor.cuit;
+  proveedor.domicilio = req.body.domicilio || proveedor.domicilio;
+  proveedor.telefono = req.body.telefono || proveedor.telefono;
 
   try {
     const proveedorAlmacenado = await proveedor.save();
