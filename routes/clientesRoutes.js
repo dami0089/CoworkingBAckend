@@ -24,6 +24,8 @@ import {
   adicional,
   obtenerAdicionales,
   editarAdicional,
+  registrarVisitante,
+  obtenerVisitantes,
 } from "../controllers/clientesController.js";
 
 import checkAuth from "../middleware/checkAuth.js";
@@ -55,6 +57,9 @@ router.put("/editar-plan/:id", checkAuth, editarPlan);
 router.put("/desactivar-activar/:id", checkAuth, desactivarCliente);
 
 router.post("/comprobar", checkAuth, comprobarCliente);
+
+router.post("/registrar-visitante", checkAuth, registrarVisitante);
+router.get("/obtener-visitantes", checkAuth, obtenerVisitantes);
 
 router.delete("/planes/:id'", checkAuth, eliminarPlan);
 router.delete("/eliminar-asistencia/:id", checkAuth, eliminarAsistencia);

@@ -20,7 +20,14 @@ dotenv.config();
 
 conectarDB();
 
-app.use(cors());
+// Configurar CORS
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Contador de peticiones
 let requestCount = 0;
@@ -45,12 +52,12 @@ app.use("/api/salas", salasRoutes);
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
+app.listen(4000, "0.0.0.0", () => {
+  console.log("Server listening on port 4000");
 });
 
 // pruebaAfip();
 // checkNewEmails();
 // setInterval(checkNewEmails, 60 * 1000);
 
-await bot();
+bot();

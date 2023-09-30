@@ -6,6 +6,8 @@ import Usuario from "../models/Usuario.js";
 import schedule from "node-schedule";
 import fs from "fs";
 import Adicionales from "../models/Adicionales.js";
+import Visitante from "../models/Visitantes.js";
+import { enviarMensaje } from "../whatsappbot.js";
 
 const obtenerClientes = async (req, res) => {
   const clientes = await Cliente.find();
@@ -448,6 +450,55 @@ const eliminarAsistencia = async (req, res) => {
   }
 };
 
+const registrarVisitante = async (req, res) => {
+  const registro = new Visitante(req.body);
+
+  const cliente = await Cliente.findOne({ cuit: registro.dni });
+
+  console.log(registro);
+  console.log(cliente);
+
+  if (!cliente) {
+    const nuevoCliente = new Cliente();
+    nuevoCliente.nombre = registro.nombre;
+    nuevoCliente.cuit = registro.dni;
+    nuevoCliente.mailFactura = registro.email;
+    nuevoCliente.celular = registro.celular;
+    await nuevoCliente.save();
+
+    const mensajePase = `¡Hola ${registro.nombre}!
+    Te damos la cordial bienvenida a *People Coworking*. Nos alegra que nos hayas elegido como tu espacio de trabajo. Para que tu experiencia aquí sea óptima, te brindamos las siguientes recomendaciones:
+    1- *Conexión WiFi:* La contraseña es Coworking2019. Si necesitás mayor velocidad, conectate a las redes que indican 5G o 5.8 en su nombre. Si no las visualizás, es posible que tu dispositivo no sea compatible con dual band.
+    2- *Refrigerios:* En el comedor disponés de café y té. Podés consumirlos cuando desees. Si querés comer, te pedimos que lo hagas en este espacio y evites hacerlo en las áreas de trabajo.
+    3- *Bar:* Contamos con un bar donde ofrecemos desde snacks hasta almuerzos. Ruth estará disponible para atenderte.
+    4- *Llamadas:* Disponemos de dos zonas de trabajo. El sector del fondo es de silencio, por lo que si tenés que hacer llamadas o charlas, utilizá el otro sector.
+    
+    Ante cualquier inquietud, Nadia y Damián en recepción están para asistirte. ¡Estamos a tu disposición!`;
+
+    if (registro.motivo == "Pase diario") {
+      await enviarMensaje(mensajePase, registro.celular);
+    }
+  }
+
+  try {
+    await registro.save();
+    res.json({ msg: "OK" });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const obtenerVisitantes = async (req, res) => {
+  const treintaDiasAtras = new Date();
+  treintaDiasAtras.setDate(treintaDiasAtras.getDate() - 30);
+
+  const visitantes = await Visitante.find({
+    fecha: { $gte: treintaDiasAtras }, // Asumo que el campo que almacena la fecha se llama 'fecha'. Si tiene otro nombre, reemplaza 'fecha' por el nombre correcto.
+  }).sort({ fecha: -1 }); // Ordenar en orden descendente por fecha
+
+  res.json(visitantes);
+};
+
 export {
   obtenerClientes,
   nuevoCliente,
@@ -470,5 +521,7 @@ export {
   adicional,
   obtenerAdicionales,
   editarAdicional,
+  registrarVisitante,
+  obtenerVisitantes,
   // obtenerUsuariosCliente,
 };

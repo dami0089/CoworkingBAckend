@@ -19,12 +19,14 @@ const clienteSchema = mongoose.Schema(
     domicilio: {
       type: String,
       trim: true,
-      require: true,
     },
     mailFactura: {
       type: String,
       trim: true,
-      require: true,
+    },
+    celular: {
+      type: String,
+      trim: true,
     },
     fechaAlta: {
       type: Date,

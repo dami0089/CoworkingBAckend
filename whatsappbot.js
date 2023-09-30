@@ -12,7 +12,8 @@ const server = createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://carryon.com.ar", "http://127.0.0.1:5173"],
+    // origin: ["http://34.235.146.116:5173"],
+    origin: ["http://127.0.0.1:5173"],
     methods: ["GET", "POST"],
     credentials: true,
   },
