@@ -28,7 +28,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
+// app.use(cors());
 // Contador de peticiones
 let requestCount = 0;
 

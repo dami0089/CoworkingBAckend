@@ -3,7 +3,7 @@ import Cliente from "../models/Cliente.js";
 import Factura from "../models/Facturas.js";
 import Planes from "../models/Planes.js";
 import Usuario from "../models/Usuario.js";
-import schedule from "node-schedule";
+import schedule, { scheduleJob } from "node-schedule";
 import fs from "fs";
 import Adicionales from "../models/Adicionales.js";
 import Visitante from "../models/Visitantes.js";
@@ -401,7 +401,19 @@ const cambiarAsistencias = async (req, res) => {
       await usuario.save();
     });
     await Promise.all(promises);
-    res.json("Asistencias actualizadas");
+  } catch (error) {
+    console.error("Error al actualizar asistencias:", error);
+  }
+};
+
+const cambiarAsist = async () => {
+  try {
+    const usuarios = await Usuario.find({ asistioHoy: true });
+    const promises = usuarios.map(async (usuario) => {
+      usuario.asistioHoy = false;
+      await usuario.save();
+    });
+    await Promise.all(promises);
   } catch (error) {
     console.error("Error al actualizar asistencias:", error);
   }
@@ -409,7 +421,7 @@ const cambiarAsistencias = async (req, res) => {
 
 // Cambiar asistencias todos los días a las 19 hs
 schedule.scheduleJob("0 19 * * *", () => {
-  cambiarAsistencias();
+  cambiarAsist();
 });
 
 const editarAsistencia = async (req, res) => {
@@ -427,9 +439,24 @@ const editarAsistencia = async (req, res) => {
   }
 };
 
+const editarAsist = async () => {
+  const { id } = req.params;
+
+  const asistencia = await Asistencias.findById(id);
+
+  asistencia.fecha = req.body.fecha || asistencia.fecha;
+
+  try {
+    const asistenciaEditada = await asistencia.save();
+    res.json(asistenciaEditada);
+  } catch (error) {
+    console.error("Error al actualizar asistencias:", error);
+  }
+};
+
 // Cambiar asistencias todos los días a las 19 hs
 schedule.scheduleJob("0 19 * * *", () => {
-  cambiarAsistencias();
+  editarAsist();
 });
 
 const eliminarAsistencia = async (req, res) => {
@@ -494,7 +521,7 @@ const obtenerVisitantes = async (req, res) => {
 
   const visitantes = await Visitante.find({
     fecha: { $gte: treintaDiasAtras }, // Asumo que el campo que almacena la fecha se llama 'fecha'. Si tiene otro nombre, reemplaza 'fecha' por el nombre correcto.
-  }).sort({ fecha: -1 }); // Ordenar en orden descendente por fecha
+  }).sort({ fecha: 1 }); // Ordenar en orden descendente por fecha
 
   res.json(visitantes);
 };
