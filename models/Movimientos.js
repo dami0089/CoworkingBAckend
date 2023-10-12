@@ -9,12 +9,10 @@ const movimientosSchema = mongoose.Schema(
     entidad: {
       type: String,
       trim: true,
-      require: true,
     },
     tipo: {
       type: String,
       trim: true,
-      require: true,
     },
     proveedor: {
       type: mongoose.Schema.Types.ObjectId,
@@ -35,27 +33,22 @@ const movimientosSchema = mongoose.Schema(
     numeroFactura: {
       type: String,
       trim: true,
-      require: true,
     },
     descripcion: {
       type: String,
       trim: true,
-      require: true,
     },
     precioBruto: {
       type: String,
       trim: true,
-      require: true,
     },
     iva: {
       type: String,
       trim: true,
-      require: true,
     },
     precioNeto: {
       type: String,
       trim: true,
-      require: true,
     },
     creador: {
       type: mongoose.Schema.Types.ObjectId,

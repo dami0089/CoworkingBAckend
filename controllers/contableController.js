@@ -70,6 +70,7 @@ const nuevoMovimiento = async (req, res) => {
 
   try {
     const movimientoAlmacenado = await movimiento.save();
+    console.log(movimientoAlmacenado);
 
     await movimientoAlmacenado.save();
 
@@ -106,18 +107,9 @@ const editarMovimiento = async (req, res) => {
   }
 
   movimiento.entidad = req.body.entidad || movimiento.entidad;
-  movimiento.precioBruto = req.body.precioBruto || movimiento.precioBruto;
-  movimiento.iva = req.body.iva || movimiento.iva;
   movimiento.precioNeto = req.body.precioNeto || movimiento.precioNeto;
   movimiento.tipo = req.body.tipo || movimiento.tipo;
-  movimiento.nombre = req.body.nombre || movimiento.nombre;
-  movimiento.mailFactura =
-    req.body.mailFactura ||
-    movimiento.fechaVencimiento ||
-    req.body.fechaVencimiento ||
-    movimiento.fechaVencimiento;
-  console.log(tipo);
-  console.log(movimiento);
+  movimiento.descripcion = req.body.descripcion || movimiento.descripcion;
 
   if (tipo === "Ingreso") {
     const { cliente } = req.body;
