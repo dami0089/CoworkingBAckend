@@ -51,7 +51,7 @@ const comprobarProveedor = async (req, res) => {
 
   const existeProveedor = await Proveedor.findOne({ cuit });
 
-  if (existeProveedor) {
+  if (existeProveedor && existeProveedor.cuit != "") {
     const error = new Error("Proveedor ya registrado");
     return res.status(400).json({ msg: error.message });
   }

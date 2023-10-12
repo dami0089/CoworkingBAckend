@@ -17,6 +17,7 @@ const proveedorSchema = mongoose.Schema(
       trim: true,
       require: true,
       unique: true,
+      sparse: true,
     },
     domicilio: {
       type: String,

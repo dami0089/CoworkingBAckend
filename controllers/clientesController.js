@@ -63,7 +63,7 @@ const nuevoCliente = async (req, res) => {
 
   try {
     const clienteAlmacenado = await cliente.save();
-    clienteAlmacenado.planes.push(plan._id);
+    clienteAlmacenado.planes.push(planes);
     await clienteAlmacenado.save();
     res.json(clienteAlmacenado);
   } catch (error) {
