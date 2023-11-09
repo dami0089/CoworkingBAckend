@@ -40,8 +40,10 @@ const obtenerUsuariosProfile = async (req, res) => {
 
 const comprobarCliente = async (req, res) => {
   const { cuit } = req.body;
+  console.log(cuit);
 
   const existeCliente = await Cliente.findOne({ cuit });
+  console.log(existeCliente);
 
   if (existeCliente) {
     const error = new Error("Cliente ya registrado");
@@ -53,18 +55,32 @@ const comprobarCliente = async (req, res) => {
 
 const nuevoCliente = async (req, res) => {
   const cliente = new Cliente(req.body);
-  const { planes } = req.body;
+  const { planes, telefono } = req.body;
   console.log(planes);
-  const plan = await Planes.findOne({ nombre: planes });
+  console.log(planes);
+  const plan = await Planes.findById(planes);
 
   //agregamos el plan al Clientes
   cliente.planes = [];
   cliente.creador = req.usuario._id;
+  cliente.nombrePlan = plan.nombre;
+  cliente.celular = telefono;
 
   try {
     const clienteAlmacenado = await cliente.save();
-    clienteAlmacenado.planes.push(planes);
+    clienteAlmacenado.planes.push(plan._id);
     await clienteAlmacenado.save();
+    const usuario = new Usuario();
+
+    usuario.nombre = cliente.nombre;
+    usuario.dni = cliente.cuit;
+    usuario.nombrePlan = plan.nombre;
+    usuario.email = cliente.mailFactura;
+    usuario.celular = telefono;
+    usuario.horasSala = plan.horasSalas;
+    usuario.cliente = clienteAlmacenado._id;
+
+    await usuario.save();
     res.json(clienteAlmacenado);
   } catch (error) {
     console.log(error);
@@ -91,7 +107,7 @@ const asistencias = async (req, res) => {
   const asistencia = new Asistencias();
   let mensaje = "";
 
-  asistencia.nombreUsuario = usuario.nombre + " " + usuario.apellido;
+  asistencia.nombreUsuario = usuario.nombre;
   asistencia.usuario = id;
   console.log(usuario.plan);
   const hoy = new Date();
@@ -115,7 +131,7 @@ const asistencias = async (req, res) => {
   usuario.asistioHoy = true;
 
   try {
-    if (usuario.plan === "3 Veces por semana") {
+    if (usuario.nombrePlan === "3 Veces por semana") {
       if (asistenciasSemana.length === 0) {
         mensaje = "Primera vez en la semana para el usuario";
         const asistenciaAlmacenada = await asistencia.save();
@@ -214,9 +230,7 @@ const obtenerCliente = async (req, res) => {
   //obtener las facturas del cliente
   // const facturas = await Factura.find().where("cliente").equals(cliente._id);
 
-  res.json({
-    cliente,
-  });
+  res.json(cliente);
 };
 
 const obtenerPlan = async (req, res) => {
@@ -333,6 +347,10 @@ const editarCliente = async (req, res) => {
   const { id } = req.params;
 
   const cliente = await Cliente.findById(id);
+  const usuario = await Usuario.findOne({ cliente: id });
+  const plan = await Planes.findById(req.body.planes);
+
+  console.log(plan);
 
   if (!cliente) {
     const error = new Error("No encontrado");
@@ -343,8 +361,30 @@ const editarCliente = async (req, res) => {
   cliente.nombre = req.body.nombre || cliente.nombre;
   cliente.mailFactura = req.body.mailFactura || cliente.mailFactura;
   cliente.domicilio = req.body.domicilio || cliente.domicilio;
+  cliente.planes[0] = req.body.planes || cliente.planes;
+  cliente.celular = req.body.celular || cliente.celular;
+  cliente.cuit = req.body.cuit || cliente.cuit;
   cliente.fechaVencimiento =
     req.body.fechaVencimiento || cliente.fechaVencimiento;
+
+  if (!usuario) {
+    const nuevoUsuario = new Usuario();
+    nuevoUsuario.nombre = cliente.nombre;
+    nuevoUsuario.dni = cliente.cuit;
+    nuevoUsuario.nombrePlan = plan.nombre;
+    nuevoUsuario.plan = plan._id;
+    nuevoUsuario.email = cliente.mailFactura;
+    nuevoUsuario.celular = cliente.celular;
+    nuevoUsuario.horasSala = plan.horasSalas;
+    nuevoUsuario.cliente = id;
+    await nuevoUsuario.save();
+  }
+
+  if (usuario && usuario.plan !== req.body.planes) {
+    usuario.plan = req.body.planes;
+    usuario.nombrePlan = plan.nombre;
+    await usuario.save();
+  }
 
   try {
     const usuarioAlmacenado = await cliente.save();
@@ -408,7 +448,11 @@ const cambiarAsistencias = async (req, res) => {
 
 const cambiarAsist = async () => {
   try {
-    const usuarios = await Usuario.find({ asistioHoy: true });
+    const usuarios = await Usuario.find({
+      asistioHoy: true,
+      isActivo: true,
+      nombrePlan: "3 Veces por semana",
+    });
     const promises = usuarios.map(async (usuario) => {
       usuario.asistioHoy = false;
       await usuario.save();
@@ -420,7 +464,7 @@ const cambiarAsist = async () => {
 };
 
 // Cambiar asistencias todos los días a las 19 hs
-schedule.scheduleJob("0 19 * * *", () => {
+schedule.scheduleJob("0 21 * * *", () => {
   cambiarAsist();
 });
 
@@ -453,11 +497,6 @@ const editarAsist = async () => {
     console.error("Error al actualizar asistencias:", error);
   }
 };
-
-// Cambiar asistencias todos los días a las 19 hs
-schedule.scheduleJob("0 19 * * *", () => {
-  editarAsist();
-});
 
 const eliminarAsistencia = async (req, res) => {
   const { id } = req.params;
@@ -520,10 +559,16 @@ const obtenerVisitantes = async (req, res) => {
   treintaDiasAtras.setDate(treintaDiasAtras.getDate() - 30);
 
   const visitantes = await Visitante.find({
-    fecha: { $gte: treintaDiasAtras }, // Asumo que el campo que almacena la fecha se llama 'fecha'. Si tiene otro nombre, reemplaza 'fecha' por el nombre correcto.
-  }).sort({ fecha: 1 }); // Ordenar en orden descendente por fecha
+    fechaVisita: { $gte: treintaDiasAtras }, // Asumo que el campo que almacena la fecha se llama 'fecha'. Si tiene otro nombre, reemplaza 'fecha' por el nombre correcto.
+  }).sort({ fechaVisita: -1 }); // Ordenar en orden descendente por fecha
 
   res.json(visitantes);
+};
+
+const obtenerTresVecesPorSemana = async (req, res) => {
+  const clientes = await Cliente.find({ nombrePlan: "3 Veces por semana" });
+  console.log(clientes);
+  res.json(clientes);
 };
 
 export {
@@ -550,5 +595,6 @@ export {
   editarAdicional,
   registrarVisitante,
   obtenerVisitantes,
+  obtenerTresVecesPorSemana,
   // obtenerUsuariosCliente,
 };

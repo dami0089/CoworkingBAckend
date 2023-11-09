@@ -26,6 +26,7 @@ import {
   editarAdicional,
   registrarVisitante,
   obtenerVisitantes,
+  obtenerTresVecesPorSemana,
 } from "../controllers/clientesController.js";
 
 import checkAuth from "../middleware/checkAuth.js";
@@ -60,6 +61,8 @@ router.post("/comprobar", checkAuth, comprobarCliente);
 
 router.post("/registrar-visitante", checkAuth, registrarVisitante);
 router.get("/obtener-visitantes", checkAuth, obtenerVisitantes);
+
+router.get("/tres-veces", checkAuth, obtenerTresVecesPorSemana);
 
 router.delete("/planes/:id'", checkAuth, eliminarPlan);
 router.delete("/eliminar-asistencia/:id", checkAuth, eliminarAsistencia);

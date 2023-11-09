@@ -56,7 +56,7 @@ const usuarioSchema = mongoose.Schema(
     },
     asistioHoy: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     cliente: [
       {

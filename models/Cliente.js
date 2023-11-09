@@ -29,6 +29,10 @@ const clienteSchema = mongoose.Schema(
       type: String,
       trim: true,
     },
+    nombrePlan: {
+      type: String,
+      trim: true,
+    },
     fechaAlta: {
       type: Date,
       default: Date.now(),
@@ -38,6 +42,10 @@ const clienteSchema = mongoose.Schema(
       default: Date.now(),
     },
     isActivo: {
+      type: Boolean,
+      default: true,
+    },
+    asistioHoy: {
       type: Boolean,
       default: true,
     },
