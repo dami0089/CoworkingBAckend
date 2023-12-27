@@ -60,4 +60,6 @@ app.listen(4000, "0.0.0.0", () => {
 // checkNewEmails();
 // setInterval(checkNewEmails, 60 * 1000);
 
+console.log("Voy a llamr al bot");
 bot();
+console.log("ya llame  al bot");

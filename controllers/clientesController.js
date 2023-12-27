@@ -54,11 +54,17 @@ const comprobarCliente = async (req, res) => {
 };
 
 const nuevoCliente = async (req, res) => {
-  const cliente = new Cliente(req.body);
-  const { planes, telefono } = req.body;
-  console.log(planes);
-  console.log(planes);
+  const { planes, telefono, mailFactura, cuit } = req.body;
   const plan = await Planes.findById(planes);
+
+  const clienteAlmacenado = await Cliente.findOne({ cuit: cuit });
+
+  if (clienteAlmacenado) {
+    const error = new Error("Cliente ya registrado");
+    return res.status(400).json({ msg: error.message });
+  }
+
+  const cliente = new Cliente(req.body);
 
   //agregamos el plan al Clientes
   cliente.planes = [];
@@ -70,6 +76,14 @@ const nuevoCliente = async (req, res) => {
     const clienteAlmacenado = await cliente.save();
     clienteAlmacenado.planes.push(plan._id);
     await clienteAlmacenado.save();
+
+    const usuarioAlmacenado = await Usuario.findOne({ email: mailFactura });
+
+    if (usuarioAlmacenado) {
+      const error = new Error("El cliente ya tiene un usuario");
+      return res.status(400).json({ msg: error.message });
+    }
+
     const usuario = new Usuario();
 
     usuario.nombre = cliente.nombre;
@@ -81,7 +95,7 @@ const nuevoCliente = async (req, res) => {
     usuario.cliente = clienteAlmacenado._id;
 
     await usuario.save();
-    res.json(clienteAlmacenado);
+    res.json({ msg: "Cliente creado correctamente" });
   } catch (error) {
     console.log(error);
   }

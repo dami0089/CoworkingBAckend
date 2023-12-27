@@ -15,6 +15,7 @@ import {
   obtenerUsuarios,
   editarUsuario,
   eliminarUsuario,
+  registrarAdmin,
 } from "../controllers/usuarioController.js";
 
 import checkAuth from "../middleware/checkAuth.js";
@@ -23,6 +24,7 @@ import { consultarAutenticacion } from "../whatsappbot.js";
 
 //Autenticacion registro y confirmacino de usuarios
 router.post("/", checkAuth, registrar); // crea un nuevo usuario
+router.post("/administrador", checkAuth, registrarAdmin); // crea un nuevo usuario
 router.post("/login", autenticar);
 // router.get("/confirmar/:token", confirmar);
 router.route("/crear-password/:token").get(comprobarToken).post(crearPassword);

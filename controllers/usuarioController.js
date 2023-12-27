@@ -1,7 +1,11 @@
 import Usuario from "../models/Usuario.js";
 import generarId from "../helpers/generarId.js";
 import generarJWT from "../helpers/generarJWT.js";
-import { emailRegistro, emailOlvidePassword } from "../helpers/emails.js";
+import {
+  emailRegistro,
+  emailOlvidePassword,
+  emailAdmin,
+} from "../helpers/emails.js";
 import Cliente from "../models/Cliente.js";
 import imaps from "imap-simple";
 import dotenv from "dotenv";
@@ -99,6 +103,35 @@ const registrar = async (req, res) => {
     //   nombre: usuario.nombre,
     //   token: usuario.token,
     // });
+
+    await usuario.save();
+    res.json({ msg: "Usuario Creado Correctamente." });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const registrarAdmin = async (req, res) => {
+  //Evita registros duplicados
+  const { email } = req.body;
+
+  const existeUsuario = await Usuario.findOne({ email });
+
+  if (existeUsuario) {
+    const error = new Error("Usuario ya registrado");
+    return res.status(400).json({ msg: error.message });
+  }
+
+  try {
+    const usuario = new Usuario(req.body);
+    usuario.token = generarId();
+
+    // Enviamos el email de confirmacion
+    await emailAdmin({
+      email: usuario.email,
+      nombre: usuario.nombre,
+      token: usuario.token,
+    });
 
     await usuario.save();
     res.json({ msg: "Usuario Creado Correctamente." });
@@ -336,4 +369,5 @@ export {
   editarUsuario,
   eliminarUsuario,
   checkNewEmails,
+  registrarAdmin,
 };

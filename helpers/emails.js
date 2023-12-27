@@ -38,6 +38,42 @@ export const emailRegistro = async (datos) => {
   });
 };
 
+export const emailAdmin = async (datos) => {
+  const { email, nombre, token } = datos;
+
+  const hemail = process.env.EMAIL;
+  const hpass = process.env.PASSWORD;
+  const host = process.env.HOST;
+  const port = process.env.EMAIL_PORT;
+
+  const transport = nodemailer.createTransport({
+    host: host,
+    port: port,
+    auth: {
+      user: hemail,
+      pass: hpass,
+    },
+  });
+
+  //informacion del email
+
+  const info = await transport.sendMail({
+    from: '"People Coworking" <info@peopleco.com.ar>',
+    to: email,
+    subject: "Alta de cuenta",
+    text: "Verifica tu cuenta en People Coworking",
+    html: `
+        <p>Hola ${nombre}</p>
+        <p>Hemos creado tu cuenta para gestiones administrativas del espacio. Solo debes configurar una contraseña y puedes hacerlo en el siguiente enlace: <a href='${process.env.FRONTEND_URL}/crear-password/${token}'>Configurar Pass</a></p>
+
+        <p>Si no acabas de adquirir una membresia en People Coworking, puedes ignorar este mensaje.</p>
+
+        <p>Que tengas un gran dia!</p>
+        <p>Equipo People Coworking</p>
+    `,
+  });
+};
+
 export const emailOlvidePassword = async (datos) => {
   const { email, nombre, token } = datos;
 
