@@ -146,3 +146,52 @@ export const emailReservaSala = async (datos) => {
     `,
   });
 };
+
+export const recordatorioVencimiento = async (datos) => {
+  const { email, nombre, vencimiento, nombrePlan, linkPago } = datos;
+
+  const hemail = process.env.EMAIL;
+  const hpass = process.env.PASSWORD;
+  const host = process.env.HOST;
+  const port = process.env.EMAIL_PORT;
+
+  const transport = nodemailer.createTransport({
+    host: host,
+    port: port,
+    auth: {
+      user: hemail,
+      pass: hpass,
+    },
+  });
+
+  //informacion del email
+
+  const info = await transport.sendMail({
+    from: '"People Coworking - Bienvenid@!" <info@peopleco.com.ar>',
+    to: email,
+    cc: "info@peopleco.com.ar",
+    subject: "Recordatorio de Pago",
+    text: "Recordatorio de Pago - People Coworking",
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <h2>Hola ${nombre}!</h2>
+        <p>Te recordamos que tu ${nombrePlan} venció el día ${vencimiento}. A continuación, te compartimos un enlace para realizar el pago a través de Mercado Pago. También puedes optar por transferencia bancaria (datos adjuntos), pagar en efectivo o con tarjeta en la recepción.</p>
+  
+        <a href="${linkPago}" target="_blank" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #009ee3; color: #ffffff; text-decoration: none; border-radius: 5px;">
+          <img src="https://http2.mlstatic.com/frontend-assets/banking-home-landing/logo-mercadopago.jpg" alt="Mercado Pago" style="vertical-align: middle; height: 30px; margin-right: 10px;">
+          Pagar con Mercado Pago
+        </a>
+  
+        <p style="margin-top: 30px;">Aguardamos tu respuesta a la brevedad.</p>
+        <p>Que tengas un gran día!</p>
+        <p>Equipo People Coworking</p>
+      </div>
+    `,
+    attachments: [
+      {
+        filename: "datos-bancarios.pdf", // Cambia esto por el nombre real del archivo
+        path: "helpers/datos-bancarios.pdf", // Cambia esto por la ruta real del archivo
+      },
+    ],
+  });
+};

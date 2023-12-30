@@ -8,24 +8,38 @@ import {
   editarMovimiento,
   obtenerMovimiento,
   eliminarMovimiento,
+  nuevoPagoCliente,
+  obtenerMovimientosPorMesYAno,
+  obtenerTotalesDashboard,
+  obtenerResumenPorEntidad,
+  obtenerResumenPorMesYEntidad,
 } from "../controllers/contableController.js";
 
 import checkAuth from "../middleware/checkAuth.js";
 
-router
-  .route("/")
-  .get(checkAuth, obtenerMovimientos)
-  .post(checkAuth, nuevoMovimiento);
+router.post("/", checkAuth, nuevoMovimiento);
 router.get("/obtener/:id", checkAuth, obtenerMovimiento);
 router.route("/:id").put(checkAuth, editarMovimiento);
 router.delete("/planes/:id'", checkAuth, eliminarMovimiento);
 
-//TODO: Agregar facturas a los clientes
+router.post("/pago-cliente", checkAuth, nuevoPagoCliente);
 
-//TODO: Agregar Recibos a los clientes
+router.post("/obtener-movimientos-entidad", checkAuth, obtenerMovimientos);
 
-//TODO: Agregar Adicionales a los clientes
+router.post("/filtrar-movimientos", checkAuth, obtenerMovimientosPorMesYAno);
 
-//TODO: Agregar Usuarios a los clientes
+router.get("/obtener-dash-contable", checkAuth, obtenerTotalesDashboard);
+
+router.post(
+  "/obtener-dash-contable-entidad/:entidad",
+  checkAuth,
+  obtenerResumenPorEntidad
+);
+
+router.post(
+  "/obtener-dash-contable-entidad-filtrado/",
+  checkAuth,
+  obtenerResumenPorMesYEntidad
+);
 
 export default router;

@@ -4,3 +4,4 @@ node_modules
 .git 2
 whatsappbot.js
 .wwebjs_cache
+/helpers/datos-bancarios.pdf

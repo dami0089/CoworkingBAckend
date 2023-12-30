@@ -62,4 +62,24 @@ const editarPlan = async (req, res) => {
   }
 };
 
-export { obtenerPlanes, nuevoPlan, obtenerPlan, editarPlan };
+const eliminarPlan = async (req, res) => {
+  const { id } = req.params;
+  console.log("eliminando plan");
+
+  try {
+    const plan = await Planes.findById(id);
+
+    if (!plan) {
+      const error = new Error("No encontrado");
+      return res.status(404).json({ msg: error.message });
+    }
+
+    await plan.remove(); // Elimina el plan
+    res.json({ msg: "Plan eliminado con éxito" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+export { obtenerPlanes, nuevoPlan, obtenerPlan, editarPlan, eliminarPlan };

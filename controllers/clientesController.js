@@ -8,6 +8,13 @@ import fs from "fs";
 import Adicionales from "../models/Adicionales.js";
 import Visitante from "../models/Visitantes.js";
 import { enviarMensaje } from "../whatsappbot.js";
+import { MercadoPagoConfig, Payment } from "mercadopago";
+import dotenv from "dotenv";
+import axios from "axios";
+import moment from "moment/moment.js";
+import { recordatorioVencimiento } from "../helpers/emails.js";
+
+dotenv.config();
 
 const obtenerClientes = async (req, res) => {
   const clientes = await Cliente.find();
@@ -361,10 +368,8 @@ const editarCliente = async (req, res) => {
   const { id } = req.params;
 
   const cliente = await Cliente.findById(id);
-  const usuario = await Usuario.findOne({ cliente: id });
-  const plan = await Planes.findById(req.body.planes);
 
-  console.log(plan);
+  console.log(req.body);
 
   if (!cliente) {
     const error = new Error("No encontrado");
@@ -381,27 +386,9 @@ const editarCliente = async (req, res) => {
   cliente.fechaVencimiento =
     req.body.fechaVencimiento || cliente.fechaVencimiento;
 
-  if (!usuario) {
-    const nuevoUsuario = new Usuario();
-    nuevoUsuario.nombre = cliente.nombre;
-    nuevoUsuario.dni = cliente.cuit;
-    nuevoUsuario.nombrePlan = plan.nombre;
-    nuevoUsuario.plan = plan._id;
-    nuevoUsuario.email = cliente.mailFactura;
-    nuevoUsuario.celular = cliente.celular;
-    nuevoUsuario.horasSala = plan.horasSalas;
-    nuevoUsuario.cliente = id;
-    await nuevoUsuario.save();
-  }
-
-  if (usuario && usuario.plan !== req.body.planes) {
-    usuario.plan = req.body.planes;
-    usuario.nombrePlan = plan.nombre;
-    await usuario.save();
-  }
-
   try {
     const usuarioAlmacenado = await cliente.save();
+    console.log(usuarioAlmacenado);
     res.json(usuarioAlmacenado);
   } catch (error) {
     console.log(error);
@@ -514,19 +501,21 @@ const editarAsist = async () => {
 
 const eliminarAsistencia = async (req, res) => {
   const { id } = req.params;
-  try {
-    const asistencia = await Asistencias.findById(id);
 
-    if (!asistencia) {
-      const error = new Error("Asistencia no encontrada");
-      return res.status(404).json({ msg: error.message });
+  try {
+    // Intentar encontrar y eliminar la asistencia por su ID
+    const asistenciaEliminada = await Asistencias.findByIdAndRemove(id);
+
+    // Si no se encuentra la asistencia, enviar un mensaje de error
+    if (!asistenciaEliminada) {
+      return res.status(404).json({ msg: "Asistencia no encontrada" });
     }
 
-    await Asistencias.deleteOne({ _id: id });
-    res.json({ msg: "Asistencia eliminada correctamente" });
+    // Enviar una confirmación de que la asistencia fue eliminada
+    res.json({ msg: "Asistencia eliminada con éxito" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "Error al eliminar la asistencia" });
+    console.error(error);
+    res.status(500).json({ msg: error.message });
   }
 };
 
@@ -585,6 +574,129 @@ const obtenerTresVecesPorSemana = async (req, res) => {
   res.json(clientes);
 };
 
+const obtenerAsistenciasPorUsuario = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Comprobar si el usuario existe
+    const usuario = await Usuario.findById(id);
+    if (!usuario) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
+
+    // Buscar las asistencias asociadas con el usuario, ordenadas de la más reciente a la más antigua
+    const asistenciasUsuario = await Asistencias.find({ usuario: id }).sort({
+      fecha: -1,
+    });
+
+    // Enviar las asistencias encontradas
+    res.json(asistenciasUsuario);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+const client = new MercadoPagoConfig({
+  accessToken: process.env.TOKENMP,
+  options: { timeout: 5000 },
+});
+
+const crearLinkPago = async (datosPago) => {
+  const url = "https://api.mercadopago.com/checkout/preferences";
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${process.env.TOKENMP}`,
+  };
+  const body = {
+    items: [
+      {
+        title: datosPago.descripcion,
+        quantity: 1,
+        unit_price: datosPago.monto,
+      },
+    ],
+  };
+
+  try {
+    const response = await axios.post(url, body, { headers: headers });
+    return response.data.init_point; // URL del link de pago
+  } catch (error) {
+    console.error("Error al crear el link de pago: ", error);
+    return null;
+  }
+};
+
+const formatearFecha = (fecha) => {
+  return moment(fecha).format("DD/MM/YYYY");
+};
+
+const recordarVencimiento = async (req, res) => {
+  const { id } = req.params;
+
+  const cliente = await Cliente.findById(id);
+
+  const plan = await Planes.findById(cliente.planes[0]);
+
+  const precioFlotante = parseFloat(plan.precio);
+
+  const datosPago = {
+    descripcion: `Pago de membresia ${cliente.nombrePlan}`,
+    monto: precioFlotante,
+  };
+
+  const enlace = await crearLinkPago(datosPago);
+
+  const fechaFormateada = formatearFecha(cliente.fechaVencimiento);
+
+  const datosMail = {
+    email: cliente.mailFactura,
+    nombre: cliente.nombre,
+    vencimiento: fechaFormateada,
+    nombrePlan: cliente.nombrePlan,
+    linkPago: enlace,
+  };
+
+  await recordatorioVencimiento(datosMail);
+
+  try {
+    res.json({ msg: "Mail Enviado Correctamente" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+const recordatorioVencimientoPorWhatsapp = async (req, res) => {
+  const { id } = req.params;
+
+  const cliente = await Cliente.findById(id);
+
+  const plan = await Planes.findById(cliente.planes[0]);
+
+  const precioFlotante = parseFloat(plan.precio);
+
+  const datosPago = {
+    descripcion: `Pago de membresia ${cliente.nombrePlan}`,
+    monto: precioFlotante,
+  };
+
+  const enlace = await crearLinkPago(datosPago);
+
+  const fechaFormateada = formatearFecha(cliente.fechaVencimiento);
+
+  const mensaje = `Hola ${cliente.nombre}
+  Este es un mensaje automatico para recordarte que tu membresia ${cliente.nombrePlan} vencio el ${fechaFormateada}. Podes abonar la misma por los medios de pago de siempre o por mercado pago al siguiente link: `;
+
+  await enviarMensaje(mensaje, cliente.celular);
+  await enviarMensaje(enlace, cliente.celular);
+
+  try {
+    res.json({ msg: "Whatsapp Enviado Correctamente" });
+  } catch (error) {
+    res.status(500).json({ msg: error.message });
+  }
+};
+
 export {
   obtenerClientes,
   nuevoCliente,
@@ -610,5 +722,8 @@ export {
   registrarVisitante,
   obtenerVisitantes,
   obtenerTresVecesPorSemana,
+  obtenerAsistenciasPorUsuario,
+  recordarVencimiento,
+  recordatorioVencimientoPorWhatsapp,
   // obtenerUsuariosCliente,
 };

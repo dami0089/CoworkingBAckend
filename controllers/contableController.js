@@ -1,6 +1,7 @@
 import Cliente from "../models/Cliente.js";
 import Proveedor from "../models/Proveedor.js";
 import Movimientos from "../models/Movimientos.js";
+import moment from "moment/moment.js";
 
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
@@ -44,9 +45,57 @@ const pruebaAfip = async () => {
 };
 
 const obtenerMovimientos = async (req, res) => {
-  const movimientos = await Movimientos.find();
+  const { entidad } = req.body; // Recibe la entidad del body
 
-  res.json(movimientos);
+  // Ajustar manualmente la hora a la zona horaria de Argentina (GMT-3)
+  // Nota: Esto puede no ser preciso durante el horario de verano
+  const inicioMes = moment().utcOffset("-03:00").startOf("month").toDate();
+  const finMes = moment().utcOffset("-03:00").endOf("month").toDate();
+
+  try {
+    const movimientos = await Movimientos.find({
+      entidad: entidad,
+      fecha: {
+        $gte: inicioMes,
+        $lte: finMes,
+      },
+    });
+
+    res.json(movimientos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Error al obtener los movimientos" });
+  }
+};
+
+const obtenerMovimientosPorMesYAno = async (req, res) => {
+  const { entidad, mes, ano } = req.body.info; // Extrae los valores de req.body.info
+
+  // Asegurarse de que el mes tenga dos dígitos
+  const mesFormateado = mes.padStart(2, "0");
+
+  // Convertir mes y año a un rango de fechas
+  const inicioMes = moment(`${ano}-${mesFormateado}`, "YYYY-MM")
+    .startOf("month")
+    .toDate();
+  const finMes = moment(`${ano}-${mesFormateado}`, "YYYY-MM")
+    .endOf("month")
+    .toDate();
+
+  try {
+    const movimientos = await Movimientos.find({
+      entidad: entidad,
+      fecha: {
+        $gte: inicioMes,
+        $lte: finMes,
+      },
+    });
+
+    res.json(movimientos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Error al obtener los movimientos" });
+  }
 };
 
 const nuevoMovimiento = async (req, res) => {
@@ -157,6 +206,199 @@ const eliminarMovimiento = async (req, res) => {
   res.json({ msg: "Movimiento eliminado correctamente" });
 };
 
+const nuevoPagoCliente = async (req, res) => {
+  const { cliente } = req.body;
+  const movimiento = new Movimientos(req.body);
+
+  const clienteBase = await Cliente.findById(cliente);
+
+  movimiento.cliente = clienteBase._id;
+  movimiento.nombreCliente = clienteBase.nombre;
+  movimiento.creador = req.usuario._id;
+
+  try {
+    // Sumar un mes a la fecha de vencimiento
+    const fechaVencimientoActual = moment(clienteBase.fechaVencimiento);
+    clienteBase.fechaVencimiento = fechaVencimientoActual
+      .add(1, "months")
+      .toDate();
+
+    const movimientoAlmacenado = await movimiento.save();
+    console.log(movimientoAlmacenado);
+
+    // Actualizar la fecha de vencimiento del cliente
+    await clienteBase.save();
+
+    res.json(movimientoAlmacenado);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: error.message });
+  }
+};
+
+const obtenerTotalesDashboard = async (req, res) => {
+  try {
+    const movimientos = await Movimientos.find();
+
+    let totalBanco = 0;
+    let totalMp = 0;
+    let totalEfectivo = 0;
+
+    movimientos.forEach((movimiento) => {
+      const precioNeto = parseFloat(movimiento.precioNeto);
+
+      if (movimiento.entidad === "Banco") {
+        totalBanco += movimiento.tipo === "Ingreso" ? precioNeto : -precioNeto;
+      } else if (movimiento.entidad === "Mp") {
+        totalMp += movimiento.tipo === "Ingreso" ? precioNeto : -precioNeto;
+      } else if (movimiento.entidad === "Efectivo") {
+        totalEfectivo +=
+          movimiento.tipo === "Ingreso" ? precioNeto : -precioNeto;
+      }
+    });
+    console.log({
+      efectivo: totalEfectivo.toFixed(2).toString(),
+      Mp: totalMp.toFixed(2).toString(),
+      Banco: totalBanco.toFixed(2).toString(),
+    });
+    res.json({
+      dash: {
+        efectivo: totalEfectivo.toFixed(2).toString(),
+        Mp: totalMp.toFixed(2).toString(),
+        banco: totalBanco.toFixed(2).toString(),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ msg: "Error al obtener los totales para el dashboard" });
+  }
+};
+
+const obtenerResumenPorEntidad = async (req, res) => {
+  const { entidad } = req.params;
+
+  // Obtener el mes y año actual
+  const hoy = moment();
+  const inicioMes = hoy.startOf("month").toDate();
+  const finMes = hoy.endOf("month").toDate();
+
+  try {
+    // Filtrar movimientos por entidad y mes/año actual
+    const movimientosMes = await Movimientos.find({
+      entidad: entidad,
+      fecha: {
+        $gte: inicioMes,
+        $lte: finMes,
+      },
+    });
+
+    let gastado = 0;
+    let ingresos = 0;
+
+    movimientosMes.forEach((movimiento) => {
+      const precioNeto = parseFloat(movimiento.precioNeto);
+      if (movimiento.tipo === "Gasto") {
+        gastado += precioNeto;
+      } else if (movimiento.tipo === "Ingreso") {
+        ingresos += precioNeto;
+      }
+    });
+
+    // Calcular saldo disponible históricamente
+    const movimientosTotales = await Movimientos.find({ entidad: entidad });
+    let disponible = 0;
+
+    movimientosTotales.forEach((movimiento) => {
+      const precioNeto = parseFloat(movimiento.precioNeto);
+      if (movimiento.tipo === "Ingreso") {
+        disponible += precioNeto;
+      } else if (movimiento.tipo === "Gasto") {
+        disponible -= precioNeto;
+      }
+    });
+    console.log({
+      gastado: gastado.toFixed(2).toString(),
+      ingresos: ingresos.toFixed(2).toString(),
+      disponible: disponible.toFixed(2).toString(),
+    });
+
+    res.json({
+      dash: {
+        gastado: gastado.toFixed(2).toString(),
+        ingresos: ingresos.toFixed(2).toString(),
+        disponible: disponible.toFixed(2).toString(),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Error al obtener el resumen por entidad" });
+  }
+};
+
+const obtenerResumenPorMesYEntidad = async (req, res) => {
+  const { entidad, mes, ano } = req.body;
+
+  console.log(req.body);
+
+  // Convertir mes y año a un rango de fechas
+  const mesFormateado = mes.padStart(2, "0");
+  const inicioMes = moment(`${ano}-${mesFormateado}`, "YYYY-MM")
+    .startOf("month")
+    .toDate();
+  const finMes = moment(`${ano}-${mesFormateado}`, "YYYY-MM")
+    .endOf("month")
+    .toDate();
+
+  try {
+    // Filtrar movimientos por entidad, mes y año
+    const movimientosMes = await Movimientos.find({
+      entidad: entidad,
+      fecha: {
+        $gte: inicioMes,
+        $lte: finMes,
+      },
+    });
+
+    let gastado = 0;
+    let ingresos = 0;
+
+    movimientosMes.forEach((movimiento) => {
+      const precioNeto = parseFloat(movimiento.precioNeto);
+      if (movimiento.tipo === "Gasto") {
+        gastado += precioNeto;
+      } else if (movimiento.tipo === "Ingreso") {
+        ingresos += precioNeto;
+      }
+    });
+
+    // Calcular saldo disponible históricamente
+    const movimientosTotales = await Movimientos.find({ entidad: entidad });
+    let disponible = 0;
+
+    movimientosTotales.forEach((movimiento) => {
+      const precioNeto = parseFloat(movimiento.precioNeto);
+      if (movimiento.tipo === "Ingreso") {
+        disponible += precioNeto;
+      } else if (movimiento.tipo === "Gasto") {
+        disponible -= precioNeto;
+      }
+    });
+
+    res.json({
+      dash: {
+        gastado: gastado.toFixed(2).toString(),
+        ingresos: ingresos.toFixed(2).toString(),
+        disponible: disponible.toFixed(2).toString(),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Error al obtener el resumen" });
+  }
+};
+
 export {
   obtenerMovimientos,
   nuevoMovimiento,
@@ -164,4 +406,9 @@ export {
   editarMovimiento,
   eliminarMovimiento,
   pruebaAfip,
+  nuevoPagoCliente,
+  obtenerMovimientosPorMesYAno,
+  obtenerTotalesDashboard,
+  obtenerResumenPorEntidad,
+  obtenerResumenPorMesYEntidad,
 };

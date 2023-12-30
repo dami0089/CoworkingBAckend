@@ -27,6 +27,9 @@ import {
   registrarVisitante,
   obtenerVisitantes,
   obtenerTresVecesPorSemana,
+  obtenerAsistenciasPorUsuario,
+  recordarVencimiento,
+  recordatorioVencimientoPorWhatsapp,
 } from "../controllers/clientesController.js";
 
 import checkAuth from "../middleware/checkAuth.js";
@@ -46,6 +49,11 @@ router.post("/planes/:id", checkAuth, agregarPlan);
 router.post("/adicional", checkAuth, adicional);
 
 router.post("/asistencias/:id", checkAuth, asistencias);
+router.get(
+  "/obtener-asistencia-usuarios/:id",
+  checkAuth,
+  obtenerAsistenciasPorUsuario
+);
 router.post("/editar-asistencia/:id", checkAuth, editarAsistencia);
 router.post("/editar-adicional/:id", checkAuth, editarAdicional);
 
@@ -56,6 +64,13 @@ router.get("/obtener-adicionales/:id", checkAuth, obtenerAdicionales);
 
 router.put("/editar-plan/:id", checkAuth, editarPlan);
 router.put("/desactivar-activar/:id", checkAuth, desactivarCliente);
+
+router.post("/recordar-vencimiento/:id", checkAuth, recordarVencimiento);
+router.post(
+  "/recordar-vencimiento-whats/:id",
+  checkAuth,
+  recordatorioVencimientoPorWhatsapp
+);
 
 router.post("/comprobar", checkAuth, comprobarCliente);
 
